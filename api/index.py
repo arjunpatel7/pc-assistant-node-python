@@ -8,8 +8,73 @@ load_dotenv('.env.local')
 app = Flask(__name__)
 
 
-def upload_demo_pdfs():
-    return "files have been mock uploaded"
+def upload_demo_pdfs(assistant):
+    '''
+    This function takes our existing demo pdfs and uploads them to the given assistant
+
+    returns a message indicating the response after uploading the files 
+
+    Takes in an assistant object, and returns the response from the upload
+    '''
+
+    # Define the pretend path for PDFs
+    pdf_paths = [
+        "/path/to/demo1.pdf",
+        "/path/to/demo2.pdf",
+        "/path/to/demo3.pdf"
+    ]
+
+    # Upload each PDF to the assistant
+
+    # list for checking which documents failed to upload
+    errors = []
+
+    for pdf_path in pdf_paths:
+        response = assistant.upload_file(file_path=pdf_path, timeout=None)
+        print(f"Uploaded {pdf_path}: {response}")
+        if response.status_code != 200:
+            errors.append(pdf_path)
+    
+    if errors:
+        error_message = "The following files failed to upload: " + ", ".join(errors)
+        print(error_message)
+        return error_message
+    
+    return "Files uploaded!"
+
+
+def check_assistant_docs_ready(assistant):
+    '''
+    This function checks the documents in the given assistant
+
+    returns a message indicating the response after checking the documents 
+    '''
+
+    files = assistant.list_files()
+    if not files:
+        return False
+
+    while True:
+        all_ready = True
+        all_failed = True
+
+        for file in files:
+            if file['status'] == "processing":
+                all_ready = False
+            elif file['status'] == "ready":
+                all_failed = False
+
+        if all_ready or not all_failed:
+            return True
+        elif all_failed:
+            return False
+        else:
+            return False
+    
+
+        # Wait for a short period before checking again
+        # Refresh the file statuses
+    
 
 
 @app.route("/api/python")
@@ -68,8 +133,12 @@ def bootstrap_assistant():
         else:
             # Proceed to upload local demo PDFs to the assistant
             # Assuming we have a function to upload local demo PDFs
-            upload_demo_pdfs()
-            return f"<p>Assistant '{PINECONE_ASSISTANT_NAME}' accessed successfully and demo PDFs uploaded.</p>"
+            upload_demo_pdfs(assistant)
+            is_ready = check_assistant_docs_ready(assistant)
+            if is_ready:
+                return f"<p>Assistant '{PINECONE_ASSISTANT_NAME}' accessed successfully and demo PDFs uploaded.</p>"
+            else:
+                return f"<p>Assistant '{PINECONE_ASSISTANT_NAME}' failed to upload documents.</p>"
     
 
     # In this case, assistant does not exist, so we have to create it and pre-load it with data
