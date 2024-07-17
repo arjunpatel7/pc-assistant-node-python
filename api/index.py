@@ -1,12 +1,15 @@
 from flask import Flask, request
 import os
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables from .env.local
 load_dotenv('.env.local')
 
 app = Flask(__name__)
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def upload_demo_pdfs(assistant):
     '''
@@ -16,13 +19,10 @@ def upload_demo_pdfs(assistant):
 
     Takes in an assistant object, and returns the response from the upload
     '''
+    from glob import glob
 
-    # Define the pretend path for PDFs
-    pdf_paths = [
-        "/path/to/demo1.pdf",
-        "/path/to/demo2.pdf",
-        "/path/to/demo3.pdf"
-    ]
+    # Use glob to find all PDF files in the ./docs directory
+    pdf_paths = glob(os.path.join('docs', '*.pdf'))
 
     # Upload each PDF to the assistant
 
@@ -76,81 +76,71 @@ def check_assistant_docs_ready(assistant):
         # Refresh the file statuses
     
 
-
-@app.route("/api/python")
-def hello_world():
-    return "<p>Hello, World!</p>"
-
 @app.route("/api/bootstrap")
+def bootstrap():
+    from flask import jsonify
+    import threading
+
+    def run_bootstrap():
+        result = bootstrap_assistant()
+        print(f"Bootstrap completed: {result}")
+
+    # Start the bootstrap_assistant function in a separate thread
+    thread = threading.Thread(target=run_bootstrap)
+    thread.start()
+
+    # Return an immediate response to the client
+    return jsonify({"status": "success", "message": "Bootstrap process started in the background."})
+
+
+@app.route("/api/ingest")
 def bootstrap_assistant():
-    ''' After initializing application, assists creation of or access to Pinecone Assistant
-
-    If PINECONE_API_KEY exists and PINECONE_ASSISTANT_NAME is valid and exists, 
-    the assistant will be accessed and returned. 
-
-    If PINECONE_API_KEY exists and PINECONE_ASSISTANT_NAME is valid and does not exist, 
-    the assistant will first be created, and provided with a set of fixed local documents.
-
-    This involves reading the local documents into memory, looping through them if needed and 
-    uploading them to the created assistant. The Assistant API handles PDF ingestion! 
-
-    Returns the created assistant
-
-    '''
-    # check the required key and names first, and error out if missing
+    logging.info("Starting bootstrap_assistant function")
 
     PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
     PINECONE_ASSISTANT_NAME = os.getenv('PINECONE_ASSISTANT_NAME')
 
     if not PINECONE_API_KEY or not PINECONE_ASSISTANT_NAME:
-  
-        return f"<p>Error: PINECONE_API_KEY {PINECONE_API_KEY} and PINECONE_ASSISTANT_NAME {PINECONE_ASSISTANT_NAME} are required.</p>"
+        logging.error(f"Missing required environment variables: PINECONE_API_KEY={PINECONE_API_KEY}, PINECONE_ASSISTANT_NAME={PINECONE_ASSISTANT_NAME}")
+        return f"<p>Error: PINECONE_API_KEY and PINECONE_ASSISTANT_NAME are required.</p>"
 
-
+    logging.info("Initializing Pinecone client")
     from pinecone import Pinecone
-
-    # Initialize Pinecone client
     pc = Pinecone(api_key=PINECONE_API_KEY)
 
-    # List assistants to check if the assistant with the given name exists
+    logging.info("Checking if assistant exists")
     assistants = pc.assistant.list_assistants()
     assistant_exists = any(assistant.name == PINECONE_ASSISTANT_NAME for assistant in assistants)
 
     if assistant_exists:
-        # Load the assistant for querying
+        logging.info(f"Assistant '{PINECONE_ASSISTANT_NAME}' found")
         assistant = pc.assistant.describe_assistant(PINECONE_ASSISTANT_NAME)
         
-        # Check if the assistant has documents
         files = assistant.list_files()
         if len(files) > 0:
-            # add code here for accessing the assistant somehow 
-            print(f"Assistant '{PINECONE_ASSISTANT_NAME}' accessed successfully with existing documents.")
+            logging.info(f"Assistant '{PINECONE_ASSISTANT_NAME}' has existing documents")
             response = {
                 "status": "success",
                 "message": f"Assistant '{PINECONE_ASSISTANT_NAME}' accessed successfully with existing documents."
             }
             return response, 200
         else:
-            # Proceed to upload local demo PDFs to the assistant
-            # Assuming we have a function to upload local demo PDFs
-            upload_demo_pdfs(assistant)
+            logging.info(f"Assistant '{PINECONE_ASSISTANT_NAME}' has no documents. Uploading demo PDFs")
+            upload_result = upload_demo_pdfs(assistant)
+            logging.info(f"Upload result: {upload_result}")
+            
+            logging.info("Checking if documents are ready")
             is_ready = check_assistant_docs_ready(assistant)
             if is_ready:
+                logging.info("Documents are ready")
                 return f"<p>Assistant '{PINECONE_ASSISTANT_NAME}' accessed successfully and demo PDFs uploaded.</p>"
             else:
+                logging.error("Failed to upload documents")
                 return f"<p>Assistant '{PINECONE_ASSISTANT_NAME}' failed to upload documents.</p>"
-    
+    else:
+        logging.info(f"Assistant '{PINECONE_ASSISTANT_NAME}' does not exist")
+        # Add code here to create the assistant and pre-load it with data
+        logging.info("Creating new assistant and pre-loading data")
+        # ... (add your implementation here)
 
-    # In this case, assistant does not exist, so we have to create it and pre-load it with data
-    
-
-
-#def hello_bootstrap():
-    # Call the ingest route internally
-    #ingest_response = hello_ingest()
-    # Return bootstrap's own message
-    #return f"<p>Hello, bootstrap function! (Ingest called: {ingest_response})</p>"
-
-@app.route("/api/ingest")
-def hello_ingest():
-    return "<p>Hello, ingest function!</p>"
+    logging.info("bootstrap_assistant function completed")
