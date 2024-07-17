@@ -1,8 +1,16 @@
 from flask import Flask, request
 import os
+from dotenv import load_dotenv
 
+# Load environment variables from .env.local
+load_dotenv('.env.local')
 
 app = Flask(__name__)
+
+
+def upload_demo_pdfs():
+    return "files have been mock uploaded"
+
 
 @app.route("/api/python")
 def hello_world():
@@ -30,7 +38,8 @@ def bootstrap_assistant():
     PINECONE_ASSISTANT_NAME = os.getenv('PINECONE_ASSISTANT_NAME')
 
     if not PINECONE_API_KEY or not PINECONE_ASSISTANT_NAME:
-        return "<p>Error: PINECONE_API_KEY and PINECONE_ASSISTANT_NAME are required.</p>"
+  
+        return f"<p>Error: PINECONE_API_KEY {PINECONE_API_KEY} and PINECONE_ASSISTANT_NAME {PINECONE_ASSISTANT_NAME} are required.</p>"
 
 
     from pinecone import Pinecone
@@ -40,15 +49,15 @@ def bootstrap_assistant():
 
     # List assistants to check if the assistant with the given name exists
     assistants = pc.assistant.list_assistants()
-    assistant_exists = any(assistant['name'] == PINECONE_ASSISTANT_NAME for assistant in assistants['assistants'])
+    assistant_exists = any(assistant.name == PINECONE_ASSISTANT_NAME for assistant in assistants)
 
     if assistant_exists:
         # Load the assistant for querying
-        assistant = pc.assistant.get_assistant(PINECONE_ASSISTANT_NAME)
+        assistant = pc.assistant.describe_assistant(PINECONE_ASSISTANT_NAME)
         
         # Check if the assistant has documents
         files = assistant.list_files()
-        if len(files['files']) > 0:
+        if len(files) > 0:
             # add code here for accessing the assistant somehow 
             print(f"Assistant '{PINECONE_ASSISTANT_NAME}' accessed successfully with existing documents.")
             response = {
@@ -59,7 +68,7 @@ def bootstrap_assistant():
         else:
             # Proceed to upload local demo PDFs to the assistant
             # Assuming we have a function to upload local demo PDFs
-            upload_demo_pdfs(assistant)
+            upload_demo_pdfs()
             return f"<p>Assistant '{PINECONE_ASSISTANT_NAME}' accessed successfully and demo PDFs uploaded.</p>"
     
 
@@ -69,7 +78,7 @@ def bootstrap_assistant():
 
 #def hello_bootstrap():
     # Call the ingest route internally
-    ingest_response = hello_ingest()
+    #ingest_response = hello_ingest()
     # Return bootstrap's own message
     #return f"<p>Hello, bootstrap function! (Ingest called: {ingest_response})</p>"
 
