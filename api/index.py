@@ -13,6 +13,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def upload_demo_pdfs(assistant):
+    print('upload_demo_pdfs')
     '''
     This function takes our existing demo pdfs and uploads them to the given assistant
 
@@ -21,12 +22,16 @@ def upload_demo_pdfs(assistant):
     Takes in an assistant object, and returns the response from the upload
     '''
     from glob import glob
+    from os.path import join, dirname, abspath
+    print('post_glob_import')
 
-    # Use glob to find all PDF files in the ./docs directory
+    # Get the directory of the current file
+    current_dir = dirname(abspath(__file__))
     
-    pdf_paths = glob(os.path.join(os.getcwd(), 'docs', '*.pdf'))
+    # Use glob to find all PDF files in the ../docs directory (relative to the current file)
+    pdf_paths = glob(join(current_dir, '..', 'docs', '*.pdf'))
     print(pdf_paths)
-    # Upload each PDF to the assistant
+    
     errors = []
     for pdf_path in pdf_paths:
         logging.info(f"Uploading file: {pdf_path}")
