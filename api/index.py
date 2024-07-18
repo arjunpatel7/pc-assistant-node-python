@@ -29,8 +29,10 @@ def upload_demo_pdfs(assistant):
     errors = []
     for pdf_path in pdf_paths:
         logging.info(f"Uploading file: {pdf_path}")
+        print(f"Uploading file: {pdf_path}, print statement")
         response = assistant.upload_file(file_path=pdf_path, timeout=None)
         logging.info(f"Uploaded {pdf_path}: {response}")
+        print(f"Uploaded {pdf_path}: {response}, print statement")
 
     if errors:
         error_message = "The following files failed to upload: " + ", ".join(errors)
@@ -76,12 +78,14 @@ def check_assistant_docs_ready(assistant):
 def check_assistant_prerequisites():
     """Check API key and assistant name."""
     logging.info("Checking assistant prerequisites")
+    print("Checking assistant prerequisites, print statement")
     
     PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
     PINECONE_ASSISTANT_NAME = os.getenv('PINECONE_ASSISTANT_NAME')
 
     if not PINECONE_API_KEY or not PINECONE_ASSISTANT_NAME:
         logging.error("Missing required environment variables")
+        print("Missing required environment variables, print statement")
         return None, None
 
     pc = Pinecone(api_key=PINECONE_API_KEY)
@@ -93,6 +97,7 @@ def check_assistant_prerequisites():
 def handle_new_assistant(pc, assistant_name):
     """Handle logic for creating a new assistant."""
     logging.info(f"Creating new assistant '{assistant_name}'")
+    print("Creating new assistant, print statement")
     
     assistant = pc.assistant.create_assistant(
         assistant_name=assistant_name, 
@@ -100,11 +105,15 @@ def handle_new_assistant(pc, assistant_name):
     )
 
     logging.info(f"Assistant '{assistant_name}' created successfully")
-
+    print("Assistant created successfully, print statement")
+    
     upload_result = upload_demo_pdfs(assistant)
     logging.info(f"Upload result: {upload_result}")
+    print("Upload result, print statement")
     
     logging.info("Assistant created successfully")
+    print("Assistant created successfully, print statement")
+
     with app.app_context():
         return jsonify({
             "status": "success", 
@@ -114,6 +123,7 @@ def handle_new_assistant(pc, assistant_name):
 @app.route("/api/bootstrap")
 def bootstrap():
     logging.info("Starting bootstrap process")
+    print("Starting bootstrap process, print statement")
 
     pc, assistant_name, assistant_exists = check_assistant_prerequisites()
     
@@ -134,6 +144,7 @@ def bootstrap():
         def bootstrap_thread(pc, assistant_name):
             handle_new_assistant(pc, assistant_name)
         
+        print("Creating thread, print statement")
         threading.Thread(target=bootstrap_thread, args=(pc, assistant_name)).start()
         return jsonify({
             "status": "success", 
