@@ -89,42 +89,76 @@ def check_assistant_prerequisites():
     PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
     PINECONE_ASSISTANT_NAME = os.getenv('PINECONE_ASSISTANT_NAME')
 
+    logging.info(f"PINECONE_API_KEY exists: {bool(PINECONE_API_KEY)}")
+    logging.info(f"PINECONE_ASSISTANT_NAME exists: {bool(PINECONE_ASSISTANT_NAME)}")
+
     if not PINECONE_API_KEY or not PINECONE_ASSISTANT_NAME:
         logging.error("Missing required environment variables")
         print("Missing required environment variables, print statement")
-        return None, None
+        return None, None, None
 
-    pc = Pinecone(api_key=PINECONE_API_KEY)
-    assistants = pc.assistant.list_assistants()
+    try:
+        logging.info("Initializing Pinecone client")
+        pc = Pinecone(api_key=PINECONE_API_KEY)
+        logging.info("Pinecone client initialized successfully")
+    except Exception as e:
+        logging.error(f"Error initializing Pinecone client: {str(e)}")
+        print(f"Error initializing Pinecone client: {str(e)}, print statement")
+        return None, None, None
+
+    try:
+        logging.info("Listing assistants")
+        assistants = pc.assistant.list_assistants()
+        logging.info(f"Number of assistants found: {len(assistants)}")
+    except Exception as e:
+        logging.error(f"Error listing assistants: {str(e)}")
+        print(f"Error listing assistants: {str(e)}, print statement")
+        return pc, PINECONE_ASSISTANT_NAME, None
+
     assistant_exists = any(assistant.name == PINECONE_ASSISTANT_NAME for assistant in assistants)
+    logging.info(f"Assistant '{PINECONE_ASSISTANT_NAME}' exists: {assistant_exists}")
 
     return pc, PINECONE_ASSISTANT_NAME, assistant_exists
 
 def handle_new_assistant(pc, assistant_name):
     """Handle logic for creating a new assistant."""
     logging.info(f"Creating new assistant '{assistant_name}'")
-    print("Creating new assistant, print statement")
+    print(f"Creating new assistant '{assistant_name}', print statement")
     
-    assistant = pc.assistant.create_assistant(
-        assistant_name=assistant_name, 
-        timeout=30
-    )
-
-    logging.info(f"Assistant '{assistant_name}' created successfully")
-    print("Assistant created successfully, print statement")
-    
-    upload_result = upload_demo_pdfs(assistant)
-    logging.info(f"Upload result: {upload_result}")
-    print("Upload result, print statement")
-    
-    logging.info("Assistant created successfully")
-    print("Assistant created successfully, print statement")
-
-    with app.app_context():
+    try:
+        assistant = pc.assistant.create_assistant(
+            assistant_name=assistant_name, 
+            timeout=30
+        )
+        logging.info(f"Assistant '{assistant_name}' created successfully")
+        print(f"Assistant '{assistant_name}' created successfully, print statement")
+    except Exception as e:
+        logging.error(f"Error creating assistant: {str(e)}")
+        print(f"Error creating assistant: {str(e)}, print statement")
         return jsonify({
-            "status": "success", 
-            "message": f"Assistant '{assistant_name}' created successfully."
-        }), 200
+            "status": "error",
+            "message": f"Failed to create assistant: {str(e)}"
+        }), 500
+    
+    try:
+        upload_result = upload_demo_pdfs(assistant)
+        logging.info(f"Upload result: {upload_result}")
+        print(f"Upload result: {upload_result}, print statement")
+    except Exception as e:
+        logging.error(f"Error uploading demo PDFs: {str(e)}")
+        print(f"Error uploading demo PDFs: {str(e)}, print statement")
+        return jsonify({
+            "status": "error",
+            "message": f"Assistant created, but failed to upload demo PDFs: {str(e)}"
+        }), 500
+    
+    logging.info("Assistant creation and PDF upload completed successfully")
+    print("Assistant creation and PDF upload completed successfully, print statement")
+
+    return jsonify({
+        "status": "success", 
+        "message": f"Assistant '{assistant_name}' created successfully and demo PDFs uploaded."
+    }), 200
 
 @app.route("/api/bootstrap")
 def bootstrap():
@@ -133,6 +167,9 @@ def bootstrap():
 
     pc, assistant_name, assistant_exists = check_assistant_prerequisites()
     
+    logging.info(f"check_assistant_prerequisites returned: pc={bool(pc)}, assistant_name={bool(assistant_name)}, assistant_exists={assistant_exists}")
+    print(f"check_assistant_prerequisites returned: pc={bool(pc)}, assistant_name={bool(assistant_name)}, assistant_exists={assistant_exists}, print statement")
+
     if not pc or not assistant_name:
         return jsonify({
             "status": "error", 
@@ -148,7 +185,11 @@ def bootstrap():
     else:
         import threading
         def bootstrap_thread(pc, assistant_name):
-            handle_new_assistant(pc, assistant_name)
+            try:
+                handle_new_assistant(pc, assistant_name)
+            except Exception as e:
+                logging.error(f"Error in bootstrap thread: {str(e)}")
+                print(f"Error in bootstrap thread: {str(e)}, print statement")
         
         print("Creating thread, print statement")
         threading.Thread(target=bootstrap_thread, args=(pc, assistant_name)).start()
@@ -187,4 +228,3 @@ def check_done():
             "status": "processing", 
             "message": "Documents are still processing."
         }), 202
-
