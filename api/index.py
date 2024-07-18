@@ -23,8 +23,9 @@ def upload_demo_pdfs(assistant):
     from glob import glob
 
     # Use glob to find all PDF files in the ./docs directory
-    pdf_paths = glob(os.path.join('docs', '*.pdf'))
-
+    
+    pdf_paths = glob(os.path.join(os.getcwd(), 'docs', '*.pdf'))
+    print(pdf_paths)
     # Upload each PDF to the assistant
     errors = []
     for pdf_path in pdf_paths:
