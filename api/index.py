@@ -136,10 +136,12 @@ def check_assistant_prerequisites():
 
 def handle_new_assistant(pc, assistant_name):
     """Handle logic for creating a new assistant."""
-    logging.info(f"Creating new assistant '{assistant_name}'")
-    print(f"Creating new assistant '{assistant_name}', print statement")
+    logging.info(f"Entering handle_new_assistant function for '{assistant_name}'")
+    print(f"Entering handle_new_assistant function for '{assistant_name}', print statement")
     
     try:
+        logging.info(f"Attempting to create assistant '{assistant_name}'")
+        print(f"Attempting to create assistant '{assistant_name}', print statement")
         assistant = pc.assistant.create_assistant(
             assistant_name=assistant_name, 
             timeout=30
@@ -149,11 +151,8 @@ def handle_new_assistant(pc, assistant_name):
     except Exception as e:
         logging.error(f"Error creating assistant: {str(e)}")
         print(f"Error creating assistant: {str(e)}, print statement")
-        return jsonify({
-            "status": "error",
-            "message": f"Failed to create assistant: {str(e)}"
-        }), 500
-    
+        raise  # Re-raise the exception to be caught in the bootstrap_thread
+
     logging.info("Starting PDF upload process")
     print("Starting PDF upload process, print statement")
     try:
@@ -165,18 +164,15 @@ def handle_new_assistant(pc, assistant_name):
     except Exception as e:
         logging.error(f"Error uploading demo PDFs: {str(e)}")
         print(f"Error uploading demo PDFs: {str(e)}, print statement")
-        return jsonify({
-            "status": "error",
-            "message": f"Assistant created, but failed to upload demo PDFs: {str(e)}"
-        }), 500
-    
+        raise  # Re-raise the exception to be caught in the bootstrap_thread
+
     logging.info("Assistant creation and PDF upload completed successfully")
     print("Assistant creation and PDF upload completed successfully, print statement")
 
-    return jsonify({
+    return {
         "status": "success", 
         "message": f"Assistant '{assistant_name}' created successfully and demo PDFs uploaded."
-    }), 200
+    }
 
 @app.route("/api/bootstrap")
 def bootstrap():
@@ -204,7 +200,11 @@ def bootstrap():
         import threading
         def bootstrap_thread(pc, assistant_name):
             try:
-                handle_new_assistant(pc, assistant_name)
+                logging.info(f"Bootstrap thread started for assistant '{assistant_name}'")
+                print(f"Bootstrap thread started for assistant '{assistant_name}', print statement")
+                result = handle_new_assistant(pc, assistant_name)
+                logging.info(f"Bootstrap thread completed: {result}")
+                print(f"Bootstrap thread completed: {result}, print statement")
             except Exception as e:
                 logging.error(f"Error in bootstrap thread: {str(e)}")
                 print(f"Error in bootstrap thread: {str(e)}, print statement")
