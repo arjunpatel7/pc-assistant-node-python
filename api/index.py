@@ -16,29 +16,32 @@ def upload_demo_pdfs(assistant):
     print('upload_demo_pdfs')
     '''
     This function takes our existing demo pdfs and uploads them to the given assistant
-
     returns a message indicating the response after uploading the files 
 
     Takes in an assistant object, and returns the response from the upload
     '''
-    from glob import glob
-    from os.path import join, dirname, abspath
-    print('post_glob_import')
+    from os import listdir
+    from os.path import join, isfile
+    print('post_import')
 
-    # Get the directory of the current file
-    current_dir = dirname(abspath(__file__))
-    
-    # Use glob to find all PDF files in the ../docs directory (relative to the current file)
-    pdf_paths = glob(join(current_dir, '..', 'docs', '*.pdf'))
-    print(pdf_paths)
+    docs_dir = join('docs')
+    pdf_files = [f for f in listdir(docs_dir) if isfile(join(docs_dir, f)) and f.endswith('.pdf')]
+    print(f"PDF files found: {pdf_files}")
     
     errors = []
-    for pdf_path in pdf_paths:
+    for pdf_file in pdf_files:
+        pdf_path = join(docs_dir, pdf_file)
         logging.info(f"Uploading file: {pdf_path}")
         print(f"Uploading file: {pdf_path}, print statement")
-        response = assistant.upload_file(file_path=pdf_path, timeout=None)
-        logging.info(f"Uploaded {pdf_path}: {response}")
-        print(f"Uploaded {pdf_path}: {response}, print statement")
+        try:
+            response = assistant.upload_file(file_path=pdf_path, timeout=None)
+            logging.info(f"Uploaded {pdf_path}: {response}")
+            print(f"Uploaded {pdf_path}: {response}, print statement")
+        except Exception as e:
+            error_msg = f"Error uploading {pdf_path}: {str(e)}"
+            logging.error(error_msg)
+            print(error_msg + ", print statement")
+            errors.append(pdf_file)
 
     if errors:
         error_message = "The following files failed to upload: " + ", ".join(errors)
@@ -140,6 +143,8 @@ def handle_new_assistant(pc, assistant_name):
             "message": f"Failed to create assistant: {str(e)}"
         }), 500
     
+    logging.info("Starting PDF upload process")
+    print("Starting PDF upload process, print statement")
     try:
         upload_result = upload_demo_pdfs(assistant)
         logging.info(f"Upload result: {upload_result}")
