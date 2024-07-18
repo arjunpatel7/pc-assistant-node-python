@@ -141,12 +141,14 @@ def process_assistant_documents(assistant, assistant_name, is_new):
         action = "created" if is_new else "accessed"
         return jsonify({
             "status": "success", 
+            "is_new": is_new,
             "message": f"Assistant '{assistant_name}' {action} successfully and demo PDFs uploaded."
         }), 200
     else:
         logging.error("Failed to upload documents")
         return jsonify({
             "status": "error", 
+            "is_new": is_new,
             "message": f"Assistant '{assistant_name}' failed to upload documents."
         }), 500
 
