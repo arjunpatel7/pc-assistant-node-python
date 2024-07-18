@@ -142,16 +142,26 @@ def handle_new_assistant(pc, assistant_name):
     try:
         logging.info(f"Attempting to create assistant '{assistant_name}'")
         print(f"Attempting to create assistant '{assistant_name}', print statement")
+        
+        # Add more detailed logging for the create_assistant call
+        logging.info("Calling pc.assistant.create_assistant")
+        print("Calling pc.assistant.create_assistant, print statement")
+        
         assistant = pc.assistant.create_assistant(
             assistant_name=assistant_name, 
             timeout=30
         )
+        
         logging.info(f"Assistant '{assistant_name}' created successfully")
         print(f"Assistant '{assistant_name}' created successfully, print statement")
+        logging.info(f"Assistant details: {assistant}")
+        print(f"Assistant details: {assistant}, print statement")
     except Exception as e:
         logging.error(f"Error creating assistant: {str(e)}")
         print(f"Error creating assistant: {str(e)}, print statement")
-        raise  # Re-raise the exception to be caught in the bootstrap_thread
+        logging.exception("Traceback for assistant creation error:")
+        print("Traceback for assistant creation error:", exc_info=True)
+        raise
 
     logging.info("Starting PDF upload process")
     print("Starting PDF upload process, print statement")
@@ -208,6 +218,8 @@ def bootstrap():
             except Exception as e:
                 logging.error(f"Error in bootstrap thread: {str(e)}")
                 print(f"Error in bootstrap thread: {str(e)}, print statement")
+                logging.exception("Traceback for bootstrap thread error:")
+                print("Traceback for bootstrap thread error:", exc_info=True)
         
         print("Creating thread, print statement")
         try:
