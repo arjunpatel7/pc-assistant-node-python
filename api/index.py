@@ -143,7 +143,6 @@ def handle_new_assistant(pc, assistant_name):
         logging.info(f"Attempting to create assistant '{assistant_name}'")
         print(f"Attempting to create assistant '{assistant_name}', print statement")
         
-        # Add more detailed logging for the create_assistant call
         logging.info("Calling pc.assistant.create_assistant")
         print("Calling pc.assistant.create_assistant, print statement")
         
