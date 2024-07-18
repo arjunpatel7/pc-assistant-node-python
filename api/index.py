@@ -21,10 +21,21 @@ def upload_demo_pdfs(assistant):
     Takes in an assistant object, and returns the response from the upload
     '''
     from os import listdir
-    from os.path import join, isfile
+    from os.path import join, isfile, abspath, dirname
     print('post_import')
 
-    docs_dir = join('docs')
+    # Sanity check: List all files in the project root
+    project_root = abspath(dirname(__file__))
+    root_files = listdir(project_root)
+    print(f"Files in project root: {root_files}")
+
+    docs_dir = join(project_root, 'docs')
+    print(f"Looking for PDFs in: {docs_dir}")
+    
+    if not isfile(docs_dir):
+        print(f"Error: {docs_dir} is not a valid directory")
+        return f"Error: {docs_dir} is not a valid directory"
+
     pdf_files = [f for f in listdir(docs_dir) if isfile(join(docs_dir, f)) and f.endswith('.pdf')]
     print(f"PDF files found: {pdf_files}")
     
@@ -146,6 +157,8 @@ def handle_new_assistant(pc, assistant_name):
     logging.info("Starting PDF upload process")
     print("Starting PDF upload process, print statement")
     try:
+        logging.info("Calling upload_demo_pdfs function")
+        print("Calling upload_demo_pdfs function, print statement")
         upload_result = upload_demo_pdfs(assistant)
         logging.info(f"Upload result: {upload_result}")
         print(f"Upload result: {upload_result}, print statement")
@@ -197,7 +210,19 @@ def bootstrap():
                 print(f"Error in bootstrap thread: {str(e)}, print statement")
         
         print("Creating thread, print statement")
-        threading.Thread(target=bootstrap_thread, args=(pc, assistant_name)).start()
+        try:
+            thread = threading.Thread(target=bootstrap_thread, args=(pc, assistant_name))
+            thread.start()
+            logging.info("Bootstrap thread started successfully")
+            print("Bootstrap thread started successfully, print statement")
+        except Exception as e:
+            logging.error(f"Error starting bootstrap thread: {str(e)}")
+            print(f"Error starting bootstrap thread: {str(e)}, print statement")
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to start bootstrap process: {str(e)}"
+            }), 500
+
         return jsonify({
             "status": "success", 
             "message": f"Assistant '{assistant_name}' is being created and demo PDFs are being uploaded."
