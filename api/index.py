@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 from pinecone import Pinecone
 from pinecone_plugins.assistant.models.chat import Message
 import logging
-import json  # Add this import
+import json
+import re  # Add this import
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -149,11 +150,34 @@ def chat():
 
         def generate():
             response = assistant.chat_completions(messages=chat_context, stream=True)
+            content = ""
+            references = []
+            in_references = False
+
             for chunk in response:
                 if chunk.choices and chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    logger.debug(f"Received content: {content}")
-                    yield f"data: {content}\n\n"
+                    chunk_content = chunk.choices[0].delta.content
+                    logger.debug(f"Received content: {chunk_content}")
+
+                    if chunk_content.strip() == "References:":
+                        in_references = True
+                        continue
+
+                    if in_references:
+                        # Parse markdown links
+                        matches = re.findall(r'\[([^\]]+)\]\(([^\)]+)\)', chunk_content)
+                        for match in matches:
+                            references.append({"name": match[0], "url": match[1]})
+                    else:
+                        content += chunk_content
+
+                    # Send the content chunk to the client
+                    yield f"data: {json.dumps({'content': chunk_content, 'isReference': in_references})}\n\n"
+
+            # Send the final references as a separate message
+            if references:
+                yield f"data: {json.dumps({'references': references})}\n\n"
+
             logger.debug("Stream completed")
             yield "data: [DONE]\n\n"
 

@@ -3,9 +3,15 @@
 import { useState, useEffect, FormEvent, useRef } from 'react'
 import AssistantFiles from './components/AssistantFiles'
 
+interface Reference {
+  name: string;
+  url: string;
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  references?: Reference[]
 }
 
 export default function Home() {
@@ -84,6 +90,7 @@ export default function Home() {
 
       const decoder = new TextDecoder()
       let accumulatedContent = ''
+      let references: Reference[] = []
 
       while (true) {
         const { done, value } = await reader.read()
@@ -99,12 +106,17 @@ export default function Home() {
               setIsStreaming(false)
               break
             }
-            accumulatedContent += content
-            setMessages(prevMessages => {
-              const newMessages = [...prevMessages]
-              newMessages[newMessages.length - 1] = { role: 'assistant', content: accumulatedContent }
-              return newMessages
-            })
+            const parsedContent = JSON.parse(content)
+            if (parsedContent.references) {
+              references = parsedContent.references
+            } else if (!parsedContent.isReference) {
+              accumulatedContent += parsedContent.content
+              setMessages(prevMessages => {
+                const newMessages = [...prevMessages]
+                newMessages[newMessages.length - 1] = { role: 'assistant', content: accumulatedContent, references: references }
+                return newMessages
+              })
+            }
           }
         }
       }
@@ -129,8 +141,24 @@ export default function Home() {
               <div className="bg-gray-100 p-4 rounded-lg mb-4 h-[calc(100vh-500px)] overflow-y-auto">
                 {messages.map((message, index) => (
                   <div key={index} className={`mb-2 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                    <span className={`inline-block p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300'}`}>
+                    <span className={`inline-block p-2 rounded-lg ${
+                      message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300'
+                    } max-w-[80%] break-words`}>
                       {message.content}
+                      {message.references && (
+                        <div className="mt-2">
+                          <strong>References:</strong>
+                          <ul>
+                            {message.references.map((ref, i) => (
+                              <li key={i}>
+                                <a href={ref.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                  {ref.name}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </span>
                   </div>
                 ))}
