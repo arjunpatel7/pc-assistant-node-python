@@ -1,4 +1,4 @@
 Flask==3.0.3
 python-dotenv
-pinecone-client 
-pinecone-plugin-assistant
+pinecone-client>=2.2.4
+pinecone-plugin-assistant>=0.1.0

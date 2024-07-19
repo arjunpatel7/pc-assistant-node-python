@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react'
 import Image from 'next/image'
+import AssistantFiles from './components/AssistantFiles'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -14,6 +15,7 @@ export default function Home() {
   const [error, setError] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
+  const [assistantName, setAssistantName] = useState('')
 
   useEffect(() => {
     checkAssistant()
@@ -26,6 +28,7 @@ export default function Home() {
       
       setLoading(false)
       setAssistantExists(data.exists)
+      setAssistantName(data.assistant_name)
       if (!data.exists) {
         setError('Please create an Assistant')
       }
@@ -43,8 +46,6 @@ export default function Home() {
     setMessages([...messages, newMessage])
     setInput('')
 
-    // TODO: Implement API call to send message to assistant
-    // For now, we'll just simulate a response
     setTimeout(() => {
       const assistantMessage: Message = { role: 'assistant', content: 'This is a simulated response.' }
       setMessages(prevMessages => [...prevMessages, assistantMessage])
@@ -60,7 +61,7 @@ export default function Home() {
         </div>
       ) : assistantExists ? (
         <div className="w-full max-w-2xl">
-          <h1 className="text-2xl font-bold mb-4">Chat with Assistant</h1>
+          <h1 className="text-2xl font-bold mb-4">Chat with Pinecone Assistant: {assistantName}</h1>
           <div className="bg-gray-100 p-4 rounded-lg mb-4 h-96 overflow-y-auto">
             {messages.map((message, index) => (
               <div key={index} className={`mb-2 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
@@ -70,7 +71,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <form onSubmit={sendMessage} className="flex">
+          <form onSubmit={sendMessage} className="flex mb-4">
             <input
               type="text"
               value={input}
@@ -85,6 +86,7 @@ export default function Home() {
               Send
             </button>
           </form>
+          <AssistantFiles />
         </div>
       ) : (
         <div className="text-center text-red-500">

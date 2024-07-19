@@ -72,5 +72,48 @@ def check_assistant():
     return jsonify({
         "status": "success", 
         "message": f"Assistant '{assistant_name}' check completed.",
-        "exists": assistant_exists
+        "exists": assistant_exists,
+        "assistant_name": assistant_name
     }), 200
+
+@app.route("/api/list_assistant_files")
+def list_assistant_files():
+    api_key, assistant_name = check_assistant_prerequisites()
+    
+    if not api_key or not assistant_name:
+        logger.error("Prerequisites check failed.")
+        return jsonify({
+            "status": "error", 
+            "message": "PINECONE_API_KEY and PINECONE_ASSISTANT_NAME are required.",
+            "files": []
+        }), 400
+
+    try:
+        pc = Pinecone(api_key=api_key)
+        
+        # Get the assistant
+        assistant = pc.assistant.Assistant(assistant_name=assistant_name)
+        
+        # List files in the assistant
+        files = assistant.list_files()
+        
+        file_data = [{
+            "id": file.id,
+            "name": file.name,
+            "size": file.size,
+            "created_at": file.created_on  # Changed from created_at to created_on
+        } for file in files]
+
+        return jsonify({
+            "status": "success",
+            "message": f"Files for assistant '{assistant_name}' retrieved successfully.",
+            "files": file_data
+        }), 200
+
+    except Exception as e:
+        logger.exception(f"Error listing assistant files: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to list assistant files: {str(e)}",
+            "files": []
+        }), 500
