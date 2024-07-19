@@ -23,6 +23,7 @@ export default function Home() {
   const [assistantName, setAssistantName] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const streamRef = useRef<ReadableStreamDefaultReader | null>(null)
+  const [referencedFiles, setReferencedFiles] = useState<Reference[]>([])
 
   useEffect(() => {
     checkAssistant()
@@ -109,6 +110,7 @@ export default function Home() {
             const parsedContent = JSON.parse(content)
             if (parsedContent.references) {
               references = parsedContent.references
+              setReferencedFiles(references) // Update referenced files
             } else if (!parsedContent.isReference) {
               accumulatedContent += parsedContent.content
               setMessages(prevMessages => {
@@ -186,7 +188,7 @@ export default function Home() {
               )}
             </div>
             <div className="w-full">
-              <AssistantFiles />
+              <AssistantFiles referencedFiles={referencedFiles} />
             </div>
           </div>
         </div>

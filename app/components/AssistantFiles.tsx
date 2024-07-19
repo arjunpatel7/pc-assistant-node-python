@@ -8,8 +8,16 @@ interface File {
   size: number;
   created_at: string;
 }
+interface Reference {
+  name: string;
+  url: string;
+}
 
-export default function AssistantFiles() {
+interface AssistantFilesProps {
+  referencedFiles: Reference[];
+}
+
+export default function AssistantFiles({ referencedFiles }: AssistantFilesProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isOpen, setIsOpen] = useState(true);
   const [error, setError] = useState('');
@@ -39,8 +47,12 @@ export default function AssistantFiles() {
     return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
   };
 
+  const isReferenced = (file: File) => {
+    return referencedFiles.some(ref => ref.name === file.name);
+  };
+
   return (
-    <div className="w-full max-w-2xl mt-4 bg-white shadow-md rounded-lg overflow-hidden">
+    <div className="w-full mt-4 bg-white shadow-md rounded-lg overflow-hidden">
       <button
         className="w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
@@ -55,13 +67,19 @@ export default function AssistantFiles() {
           ) : (
             <div className="flex flex-wrap -mx-2">
               {files.map((file) => (
-                <div key={file.id} className="w-full sm:w-1/2 md:w-1/3 px-2 mb-4">
-                  <div className="bg-gray-100 p-4 rounded-lg">
+                <div
+                  key={file.id}
+                  className="w-full sm:w-1/2 md:w-1/3 px-2 mb-4 relative"
+                >
+                  <div className={`bg-gray-100 p-4 rounded-lg ${isReferenced(file) ? 'border border-blue-500' : ''}`}>
                     <h3 className="font-semibold truncate">{file.name}</h3>
                     <p className="text-sm text-gray-600">Size: {formatFileSize(file.size)}</p>
                     <p className="text-sm text-gray-600">
                       Created: {new Date(file.created_at).toLocaleDateString()}
                     </p>
+                    {isReferenced(file) && (
+                      <span className="absolute bottom-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Referenced</span>
+                    )}
                   </div>
                 </div>
               ))}
