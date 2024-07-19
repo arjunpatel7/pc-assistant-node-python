@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 import os
 from dotenv import load_dotenv
 from pinecone import Pinecone
+from pinecone_plugins.assistant.models.chat import Message
 import logging
 
 # Set up logging
@@ -116,4 +117,47 @@ def list_assistant_files():
             "status": "error",
             "message": f"Failed to list assistant files: {str(e)}",
             "files": []
+        }), 500
+
+@app.route("/api/chat", methods=['POST'])
+def chat():
+    api_key, assistant_name = check_assistant_prerequisites()
+    
+    if not api_key or not assistant_name:
+        return jsonify({
+            "status": "error", 
+            "message": "PINECONE_API_KEY and PINECONE_ASSISTANT_NAME are required."
+        }), 400
+
+    try:
+        pc = Pinecone(api_key=api_key)
+        assistant = pc.assistant.describe_assistant(assistant_name)
+
+        data = request.json
+        user_message = data.get('message')
+        chat_history = data.get('history', [])
+
+        if not user_message:
+            return jsonify({
+                "status": "error",
+                "message": "No message provided in the request."
+            }), 400
+
+        chat_context = [Message(content=msg['content'], role=msg['role']) for msg in chat_history]
+        chat_context.append(Message(content=user_message, role='user'))
+
+        def generate():
+            response = assistant.chat_completions(messages=chat_context, stream=True)
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    yield f"data: {chunk.choices[0].delta.content}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return Response(stream_with_context(generate()), content_type='text/event-stream')
+
+    except Exception as e:
+        logger.exception(f"Error in chat: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to process chat: {str(e)}"
         }), 500

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, FormEvent } from 'react'
-import Image from 'next/image'
 import AssistantFiles from './components/AssistantFiles'
 
 interface Message {
@@ -16,9 +15,18 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [assistantName, setAssistantName] = useState('')
+  const [isStreaming, setIsStreaming] = useState(false)
 
   useEffect(() => {
     checkAssistant()
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.close()
+      }
+    }
   }, [])
 
   const checkAssistant = async () => {
@@ -40,53 +48,111 @@ export default function Home() {
 
   const sendMessage = async (e: FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    if (!input.trim() || isStreaming) return
 
     const newMessage: Message = { role: 'user', content: input }
-    setMessages([...messages, newMessage])
+    setMessages(prevMessages => [...prevMessages, newMessage])
     setInput('')
+    setIsStreaming(true)
 
-    setTimeout(() => {
-      const assistantMessage: Message = { role: 'assistant', content: 'This is a simulated response.' }
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: input,
+          history: messages,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get response from assistant')
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Failed to get response reader')
+      }
+
+      let assistantMessage: Message = { role: 'assistant', content: '' }
       setMessages(prevMessages => [...prevMessages, assistantMessage])
-    }, 1000)
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = new TextDecoder().decode(value)
+        const lines = chunk.split('\n\n')
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') {
+              setIsStreaming(false)
+              break
+            }
+            assistantMessage.content += data
+            setMessages(prevMessages => [
+              ...prevMessages.slice(0, -1),
+              { ...assistantMessage }
+            ])
+          }
+        }
+      }
+    } catch (error) {
+      setError('Failed to communicate with the assistant')
+      setIsStreaming(false)
+    }
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">
       {loading ? (
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
           <p>Connecting to your Assistant...</p>
         </div>
       ) : assistantExists ? (
-        <div className="w-full max-w-2xl">
+        <div className="w-full max-w-6xl xl:max-w-7xl">
           <h1 className="text-2xl font-bold mb-4">Chat with Pinecone Assistant: {assistantName}</h1>
-          <div className="bg-gray-100 p-4 rounded-lg mb-4 h-96 overflow-y-auto">
-            {messages.map((message, index) => (
-              <div key={index} className={`mb-2 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                <span className={`inline-block p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300'}`}>
-                  {message.content}
-                </span>
+          <div className="flex flex-col gap-4">
+            <div className="w-full">
+              <div className="bg-gray-100 p-4 rounded-lg mb-4 h-[calc(100vh-500px)] overflow-y-auto">
+                {messages.map((message, index) => (
+                  <div key={index} className={`mb-2 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                    <span className={`inline-block p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300'}`}>
+                      {message.content}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+              <form onSubmit={sendMessage} className="flex mb-4">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  className="flex-grow p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Type your message..."
+                />
+                <button
+                  type="submit"
+                  className="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isStreaming}
+                >
+                  {isStreaming ? 'Streaming...' : 'Send'}
+                </button>
+              </form>
+              {error && (
+                <div className="text-red-500 mb-4">
+                  <p>{error}</p>
+                </div>
+              )}
+            </div>
+            <div className="w-full">
+              <AssistantFiles />
+            </div>
           </div>
-          <form onSubmit={sendMessage} className="flex mb-4">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="flex-grow p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Type your message..."
-            />
-            <button
-              type="submit"
-              className="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Send
-            </button>
-          </form>
-          <AssistantFiles />
         </div>
       ) : (
         <div className="text-center text-red-500">
