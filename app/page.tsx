@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, FormEvent, useRef } from 'react'
 import AssistantFiles from './components/AssistantFiles'
 
 interface Message {
@@ -16,6 +16,7 @@ export default function Home() {
   const [input, setInput] = useState('')
   const [assistantName, setAssistantName] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  const streamRef = useRef<ReadableStreamDefaultReader | null>(null)
 
   useEffect(() => {
     checkAssistant()
@@ -24,7 +25,7 @@ export default function Home() {
   useEffect(() => {
     return () => {
       if (streamRef.current) {
-        streamRef.current.close()
+        streamRef.current.cancel()
       }
     }
   }, [])
@@ -75,6 +76,8 @@ export default function Home() {
       if (!reader) {
         throw new Error('Failed to get response reader')
       }
+
+      streamRef.current = reader
 
       let assistantMessage: Message = { role: 'assistant', content: '' }
       setMessages(prevMessages => [...prevMessages, assistantMessage])
