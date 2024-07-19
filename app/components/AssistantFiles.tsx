@@ -11,7 +11,7 @@ interface File {
 
 export default function AssistantFiles() {
   const [files, setFiles] = useState<File[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
