@@ -82,24 +82,29 @@ export default function Home() {
       let assistantMessage: Message = { role: 'assistant', content: '' }
       setMessages(prevMessages => [...prevMessages, assistantMessage])
 
+      const decoder = new TextDecoder()
+      let accumulatedContent = ''
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = new TextDecoder().decode(value)
-        const lines = chunk.split('\n\n')
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+        
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') {
+            const content = line.slice(6)
+            if (content === '[DONE]') {
               setIsStreaming(false)
               break
             }
-            assistantMessage.content += data
-            setMessages(prevMessages => [
-              ...prevMessages.slice(0, -1),
-              { ...assistantMessage }
-            ])
+            accumulatedContent += content
+            setMessages(prevMessages => {
+              const newMessages = [...prevMessages]
+              newMessages[newMessages.length - 1] = { role: 'assistant', content: accumulatedContent }
+              return newMessages
+            })
           }
         }
       }

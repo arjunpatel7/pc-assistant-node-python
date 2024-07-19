@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from pinecone import Pinecone
 from pinecone_plugins.assistant.models.chat import Message
 import logging
+import json  # Add this import
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -149,8 +150,11 @@ def chat():
         def generate():
             response = assistant.chat_completions(messages=chat_context, stream=True)
             for chunk in response:
-                if chunk.choices[0].delta.content:
-                    yield f"data: {chunk.choices[0].delta.content}\n\n"
+                if chunk.choices and chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    logger.debug(f"Received content: {content}")
+                    yield f"data: {content}\n\n"
+            logger.debug("Stream completed")
             yield "data: [DONE]\n\n"
 
         return Response(stream_with_context(generate()), content_type='text/event-stream')
